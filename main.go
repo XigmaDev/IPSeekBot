@@ -202,7 +202,37 @@ func main() {
 			return
 		}
 
-		// Check resolver
+		// Check if the query is a reverse  dns lookup  command
+		if resolverName == "lookup" {
+			ips, err := reverseDNSLookup(domain)
+			if err != nil {
+				results := []tb.Result{
+					&tb.ArticleResult{
+						Title:       "Lookup Failed",
+						Description: fmt.Sprintf("Failed to resolve %s", domain),
+						Text:        fmt.Sprintf("Failed to resolve %s: %v", domain, err),
+					},
+				}
+				if err := bot.Answer(q, &tb.QueryResponse{Results: results}); err != nil {
+					log.Fatal().Err(err).Msg("Error sending message")
+				}
+				return
+			}
+
+			results := []tb.Result{
+				&tb.ArticleResult{
+					Title:       fmt.Sprintf("Lookup for %s", domain),
+					Description: fmt.Sprintf("IP Addresses: %s", strings.Join(ips, ", ")),
+					Text:        fmt.Sprintf("Domain: %s\nIP Addresses: %s", domain, strings.Join(ips, ", ")),
+				},
+			}
+			if err := bot.Answer(q, &tb.QueryResponse{Results: results}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
+			return
+		}
+
+		// Otherwise, proceed with regular DNS lookup
 		resolverIP, ok := resolvers[resolverName]
 		if !ok {
 			results := []tb.Result{
@@ -234,12 +264,12 @@ func main() {
 			return
 		}
 
-		// Inline response
+		// Inline response for DNS lookup
 		results := []tb.Result{
 			&tb.ArticleResult{
 				Title:       fmt.Sprintf("DNS Lookup for %s", domain),
-				Description: fmt.Sprintf("Resolver: %s (%s)\nIPs: %s", resolverName, resolverIP, strings.Join(ips, ", ")),
-				Text:        fmt.Sprintf("Domain: %s\nResolver: %s (%s)\nIPs: %s", domain, resolverName, resolverIP, strings.Join(ips, ", ")),
+				Description: fmt.Sprintf("Resolver: %s\nIPs: %s", resolverName, strings.Join(ips, ", ")),
+				Text:        fmt.Sprintf("Domain: %s\nResolver: %s\nIPs: %s", domain, resolverName, strings.Join(ips, ", ")),
 			},
 		}
 		if err := bot.Answer(q, &tb.QueryResponse{Results: results}); err != nil {
