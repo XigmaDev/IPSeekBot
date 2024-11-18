@@ -16,12 +16,12 @@ run:
 .PHONY: build
 build:
 	@echo "Building the bot binary..."
-	@go build -o $(BINARY_NAME)
+	@go build -o bin/$(BINARY_NAME)
 
 .PHONY: start
 start:
 	@echo "Starting the bot binary..."
-	@./$(BINARY_NAME)
+	@./bin/$(BINARY_NAME)
 
 
 .PHONY: lint
@@ -42,7 +42,7 @@ test:
 .PHONY: clean
 clean:
 	@echo "Cleaning up..."
-	@rm -f $(BINARY_NAME)
+	@rm -f bin/$(BINARY_NAME)
 
 .PHONY: deps
 deps:
