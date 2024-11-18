@@ -68,7 +68,9 @@ func main() {
 			"\nExample:\n" +
 			"`/lookup Google` example.com\n" +
 			"\nNeed help? Use /help."
-		bot.Send(c.Sender, startMessage, &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+		if _, err := bot.Send(c.Sender, startMessage, &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+			log.Fatal().Err(err).Msg("Error sending message")
+		}
 	})
 
 	// Add /help command
@@ -86,7 +88,9 @@ func main() {
 			"/resolver - List available resolvers\n" +
 			"/lookup - Resolve a domain or IP\n\n" +
 			"Happy resolving! 🚀"
-		bot.Send(c.Sender, helpMessage, &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+		if _, err := bot.Send(c.Sender, helpMessage, &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+			log.Fatal().Err(err).Msg("Error sending message")
+		}
 	})
 
 	bot.Handle("/resolver", func(c *tb.Message) {
@@ -94,13 +98,17 @@ func main() {
 		for name := range resolvers {
 			resolverList += fmt.Sprintf("- %s\n", name)
 		}
-		bot.Send(c.Sender, resolverList)
+		if _, err := bot.Send(c.Sender, resolverList); err != nil {
+			log.Fatal().Err(err).Msg("Error sending message")
+		}
 	})
 
 	bot.Handle("/lookup", func(c *tb.Message) {
 		args := strings.Fields(c.Payload)
 		if len(args) == 0 {
-			bot.Send(c.Sender, "Usage: `/lookup [resolver] domain|IP`\nExample: `/lookup Google example.com` or `/lookup 8.8.8.8`", &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+			if _, err := bot.Send(c.Sender, "Usage: `/lookup [resolver] domain|IP`\nExample: `/lookup Google example.com` or `/lookup 8.8.8.8`", &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
 			return
 		}
 
@@ -119,38 +127,50 @@ func main() {
 			// Perform reverse DNS lookup for IP
 			ptrs, err := reverseDNSLookup(target)
 			if err != nil {
-				bot.Send(c.Sender, fmt.Sprintf("Failed to resolve IP `%s`: %v", target, err), &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+				if _, err := bot.Send(c.Sender, fmt.Sprintf("Failed to resolve IP `%s`: %v", target, err), &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+					log.Fatal().Err(err).Msg("Error sending message")
+				}
 				return
 			}
 
 			result := fmt.Sprintf("*IP Address:* `%s`\n*PTR Records:* %s", target, strings.Join(ptrs, ", "))
-			bot.Send(c.Sender, result, &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+			if _, err := bot.Send(c.Sender, result, &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
 			return
 		}
 
 		// Validate domain (if not an IP)
 		if !domainRegex.MatchString(target) {
-			bot.Send(c.Sender, "Error: Invalid domain or IP format. Please use a valid domain like `example.com` or a valid IP address.", &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+			if _, err := bot.Send(c.Sender, "Error: Invalid domain or IP format. Please use a valid domain like `example.com` or a valid IP address.", &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
 			return
 		}
 
 		// Get resolver IP
 		resolverIP, ok := resolvers[resolverName]
 		if !ok {
-			bot.Send(c.Sender, "Error: Unknown resolver. Use `/resolver` to see the available resolvers.", &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+			if _, err := bot.Send(c.Sender, "Error: Unknown resolver. Use `/resolver` to see the available resolvers.", &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
 			return
 		}
 
 		// Perform DNS lookup for a domain
 		ips, err := customDNSLookup(target, resolverIP)
 		if err != nil {
-			bot.Send(c.Sender, fmt.Sprintf("Failed to resolve domain `%s`: %v", target, err), &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+			if _, err := bot.Send(c.Sender, fmt.Sprintf("Failed to resolve domain `%s`: %v", target, err), &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
 			return
 		}
 
 		// Send result
 		result := fmt.Sprintf("*Domain:* `%s`\n*Resolver:* `%s` (%s)\n*IP Addresses:* %s", target, resolverName, resolverIP, strings.Join(ips, ", "))
-		bot.Send(c.Sender, result, &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+		if _, err := bot.Send(c.Sender, result, &tb.SendOptions{ParseMode: tb.ModeMarkdown}); err != nil {
+			log.Fatal().Err(err).Msg("Error sending message")
+		}
 	})
 
 	// Handle inline queries
@@ -176,7 +196,9 @@ func main() {
 					Text:        "Error: Invalid domain format.",
 				},
 			}
-			bot.Answer(q, &tb.QueryResponse{Results: results})
+			if err := bot.Answer(q, &tb.QueryResponse{Results: results}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
 			return
 		}
 
@@ -190,7 +212,9 @@ func main() {
 					Text:        "Error: Unknown resolver. Use a valid resolver name.",
 				},
 			}
-			bot.Answer(q, &tb.QueryResponse{Results: results})
+			if err := bot.Answer(q, &tb.QueryResponse{Results: results}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
 			return
 		}
 
@@ -204,7 +228,9 @@ func main() {
 					Text:        fmt.Sprintf("Failed to resolve %s: %v", domain, err),
 				},
 			}
-			bot.Answer(q, &tb.QueryResponse{Results: results})
+			if err := bot.Answer(q, &tb.QueryResponse{Results: results}); err != nil {
+				log.Fatal().Err(err).Msg("Error sending message")
+			}
 			return
 		}
 
@@ -216,7 +242,9 @@ func main() {
 				Text:        fmt.Sprintf("Domain: %s\nResolver: %s (%s)\nIPs: %s", domain, resolverName, resolverIP, strings.Join(ips, ", ")),
 			},
 		}
-		bot.Answer(q, &tb.QueryResponse{Results: results})
+		if err := bot.Answer(q, &tb.QueryResponse{Results: results}); err != nil {
+			log.Fatal().Err(err).Msg("Error sending message")
+		}
 	})
 
 	// Start the bot
