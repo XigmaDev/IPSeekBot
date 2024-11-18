@@ -13,6 +13,12 @@ run:
 	@echo "Running the bot..."
 	@go run .
 
+
+.PHONY: tidy
+tidy:
+	@go mod tidy -v -x 
+
+
 .PHONY: build
 build:
 	@echo "Building the bot binary..."
