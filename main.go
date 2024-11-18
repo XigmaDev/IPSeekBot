@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"regexp"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
 	tb "github.com/tucnak/telebot"
 )
 
@@ -34,14 +34,19 @@ var resolvers = map[string]string{
 }
 
 func main() {
+
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMicro
+	log := zerolog.New(os.Stderr).With().Timestamp().Logger()
+	log = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	err := godotenv.Load()
 	if err != nil {
-		log.Println("Warning: No .env file found.")
+		log.Fatal().Err(err).Msg("Warning: No .env file found.")
 	}
 
 	botToken := os.Getenv("BOT_TOKEN")
 	if botToken == "" {
-		log.Fatal("Error: BOT_TOKEN not set in environment.")
+		log.Fatal().Msg("Error: BOT_TOKEN not set in environment.")
 	}
 
 	bot, err := tb.NewBot(tb.Settings{
@@ -49,7 +54,7 @@ func main() {
 		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
 	})
 	if err != nil {
-		log.Fatalf("Failed to create bot: %v", err)
+		log.Fatal().Err(err).Msg("Failed to create bot")
 	}
 
 	domainRegex := regexp.MustCompile(`^(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$`)
