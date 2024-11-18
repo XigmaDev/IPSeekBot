@@ -75,15 +75,16 @@ func main() {
 	bot.Handle("/help", func(c *tb.Message) {
 		helpMessage := "Here's how to use this bot:\n\n" +
 			"1️⃣ Use /resolver to see the available DNS resolvers.\n" +
-			"2️⃣ Use /lookup [resolver] domain to resolve a domain using the specified resolver. If no resolver is specified, the default resolver is used.\n" +
+			"2️⃣ Use /lookup [resolver] domain or IP to resolve a domain or get PTR records for an IP address. If no resolver is specified, the default resolver is used.\n" +
 			"\nExamples:\n" +
-			"`/lookup Google` example.com\n" +
-			"`/lookup example.com` (uses the default resolver)\n" +
+			"/lookup Google example.com\n" +
+			"/lookup 8.8.8.8 (for reverse DNS lookup)\n" +
+			"/lookup example.com (uses the default resolver)\n" +
 			"\n🔧 Available Commands:\n" +
 			"/start - Show welcome message\n" +
 			"/help - Display this help message\n" +
 			"/resolver - List available resolvers\n" +
-			"/lookup - Resolve a domain\n\n" +
+			"/lookup - Resolve a domain or IP\n\n" +
 			"Happy resolving! 🚀"
 		bot.Send(c.Sender, helpMessage, &tb.SendOptions{ParseMode: tb.ModeMarkdown})
 	})
@@ -99,42 +100,57 @@ func main() {
 	bot.Handle("/lookup", func(c *tb.Message) {
 		args := strings.Fields(c.Payload)
 		if len(args) == 0 {
-			bot.Send(c.Sender, "Usage: /lookup [resolver] domain\nExample: /lookup Google example.com")
+			bot.Send(c.Sender, "Usage: `/lookup [resolver] domain|IP`\nExample: `/lookup Google example.com` or `/lookup 8.8.8.8`", &tb.SendOptions{ParseMode: tb.ModeMarkdown})
 			return
 		}
 
-		var resolverName, domain string
+		var resolverName, target string
 		if len(args) == 1 {
 			resolverName = "Default"
-			domain = args[0]
+			target = args[0]
 		} else {
 			resolverName = args[0]
-			domain = args[1]
+			target = args[1]
 		}
 
-		// Validate domain
-		if !domainRegex.MatchString(domain) {
-			bot.Send(c.Sender, "Error: Invalid domain format. Please use a valid domain like example.com.")
+		// Check if the target is an IP address
+		ip := net.ParseIP(target)
+		if ip != nil {
+			// Perform reverse DNS lookup for IP
+			ptrs, err := reverseDNSLookup(target)
+			if err != nil {
+				bot.Send(c.Sender, fmt.Sprintf("Failed to resolve IP `%s`: %v", target, err), &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+				return
+			}
+
+			result := fmt.Sprintf("*IP Address:* `%s`\n*PTR Records:* %s", target, strings.Join(ptrs, ", "))
+			bot.Send(c.Sender, result, &tb.SendOptions{ParseMode: tb.ModeMarkdown})
+			return
+		}
+
+		// Validate domain (if not an IP)
+		if !domainRegex.MatchString(target) {
+			bot.Send(c.Sender, "Error: Invalid domain or IP format. Please use a valid domain like `example.com` or a valid IP address.", &tb.SendOptions{ParseMode: tb.ModeMarkdown})
 			return
 		}
 
 		// Get resolver IP
 		resolverIP, ok := resolvers[resolverName]
 		if !ok {
-			bot.Send(c.Sender, "Error: Unknown resolver. Use /resolver to see the available resolvers.")
+			bot.Send(c.Sender, "Error: Unknown resolver. Use `/resolver` to see the available resolvers.", &tb.SendOptions{ParseMode: tb.ModeMarkdown})
 			return
 		}
 
-		// Perform DNS lookup
-		ips, err := customDNSLookup(domain, resolverIP)
+		// Perform DNS lookup for a domain
+		ips, err := customDNSLookup(target, resolverIP)
 		if err != nil {
-			bot.Send(c.Sender, fmt.Sprintf("Failed to resolve domain %s: %v", domain, err))
+			bot.Send(c.Sender, fmt.Sprintf("Failed to resolve domain `%s`: %v", target, err), &tb.SendOptions{ParseMode: tb.ModeMarkdown})
 			return
 		}
 
 		// Send result
-		result := fmt.Sprintf("Domain: %s\nResolver: %s (%s)\nIP Addresses: %s", domain, resolverName, resolverIP, strings.Join(ips, ", "))
-		bot.Send(c.Sender, result)
+		result := fmt.Sprintf("*Domain:* `%s`\n*Resolver:* `%s` (%s)\n*IP Addresses:* %s", target, resolverName, resolverIP, strings.Join(ips, ", "))
+		bot.Send(c.Sender, result, &tb.SendOptions{ParseMode: tb.ModeMarkdown})
 	})
 
 	// Handle inline queries
@@ -234,4 +250,13 @@ func customDNSLookup(domain, resolverIP string) ([]string, error) {
 		ipStrings[i] = ip.IP.String()
 	}
 	return ipStrings, nil
+}
+
+// Perform reverse DNS lookup for an IP address
+func reverseDNSLookup(ip string) ([]string, error) {
+	ptrs, err := net.LookupAddr(ip)
+	if err != nil {
+		return nil, err
+	}
+	return ptrs, nil
 }
